@@ -1,6 +1,10 @@
 #include <Arduino.h>
 #include <lvgl.h>
 #include "display.hpp"
+#include "driver/twai.h"
+
+#define CAN_TX_PIN GPIO_NUM_17
+#define CAN_RX_PIN GPIO_NUM_18
 
 void setup_simple_ui() {
     // 1. Hintergrundfarbe setzen
@@ -29,12 +33,41 @@ void setup_simple_ui() {
     lv_obj_set_style_line_color(line, lv_color_hex(0xffe522), 0); // Grün
     lv_obj_align(line, LV_ALIGN_CENTER, 0, 0);    // In der Mitte platzieren
 }
+
+void sendCan() {
+    twai_message_t msg;
+    msg.identifier = 0x123;      // CAN-ID
+    msg.extd = 0;                // 0 = Standard Frame (11bit), 1 = Extended (29bit)
+    msg.data_length_code = 4;    // Anzahl Datenbytes (0-8)
+    msg.data[0] = 0xDE;
+    msg.data[1] = 0xAD;
+    msg.data[2] = 0xBE;
+    msg.data[3] = 0xEF;
+
+    twai_transmit(&msg, pdMS_TO_TICKS(1000));  // 1000ms Timeout
+}
+
 void setup() {
     Serial.begin(115200);
     delay(1000); // Zeit für Serial Monitor
     Serial.println("Initialisiere CrowPanel...");
 
+    // Setup CAN
 
+    twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(CAN_TX_PIN, CAN_RX_PIN, TWAI_MODE_NORMAL);
+    twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();  // Baudrate anpassen
+    twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+    if (twai_driver_install(&g_config, &t_config, &f_config) != ESP_OK) {
+        Serial.println("TWAI install failed!");
+        return;
+    }
+    if (twai_start() != ESP_OK) {
+        Serial.println("TWAI start failed!");
+        return;
+    }
+    Serial.println("CAN ready!");
+
+    // Setup Display
     if (!tft.begin()) Serial.println("LGFX Fehler!");
     tft.setRotation(2);
     tft.fillScreen(TFT_RED); // Das MUSS das Display jetzt rot machen!
@@ -61,6 +94,26 @@ void setup() {
 
 void loop() {
     lv_timer_handler();
+
+    // Periodisch can Senden
+    static unsigned long lastCanMessage = 0;
+    if (lastCanMessage + 2000 < millis()) {
+        sendCan();
+        lastCanMessage = millis();
+    }
+
+    // Can Empfangen
+    twai_message_t msg;
+    if (twai_receive(&msg, pdMS_TO_TICKS(1000)) == ESP_OK) {
+        Serial.printf("ID: 0x%03X  DLC: %d  Data: ", msg.identifier, msg.data_length_code);
+        for (int i = 0; i < msg.data_length_code; i++) {
+            Serial.printf("%02X ", msg.data[i]);
+        }
+        Serial.println();
+    }
+
+
+
     delay(5);
 }
 
