@@ -21,6 +21,10 @@ uint PioEncoder::offset_pio0;
 bool PioEncoder::not_first_instance_pio0;
 uint PioEncoder::offset_pio1;
 bool PioEncoder::not_first_instance_pio1;
+#if NUM_PIOS > 2
+uint PioEncoder::offset_pio2;
+bool PioEncoder::not_first_instance_pio2;
+#endif
 
 
 PioEncoder::PioEncoder(uint8_t _pin, PIO _pio, uint _sm, int _max_step_rate, bool wflip){
@@ -33,18 +37,28 @@ PioEncoder::PioEncoder(uint8_t _pin, PIO _pio, uint _sm, int _max_step_rate, boo
 }
 
 void PioEncoder::begin(){
-    bool &not_first = (pio == pio0) ? not_first_instance_pio0 : not_first_instance_pio1;
-    uint &offset = (pio == pio0) ? offset_pio0 : offset_pio1;
+    bool *not_first = &not_first_instance_pio1;
+    uint *offset = &offset_pio1;
 
-    if (!not_first){
-        offset = pio_add_program(pio, &quadrature_encoder_program);
+    if (pio == pio0) {
+        not_first = &not_first_instance_pio0;
+        offset = &offset_pio0;
+#if NUM_PIOS > 2
+    } else if (pio == pio2) {
+        not_first = &not_first_instance_pio2;
+        offset = &offset_pio2;
+#endif
     }
-    not_first=true;
+
+    if (!*not_first){
+        *offset = pio_add_program(pio, &quadrature_encoder_program);
+    }
+    *not_first=true;
     if (sm==-1){
         sm = pio_claim_unused_sm(pio, true);
     }
     sm=sm;
-    quadrature_encoder_program_init(pio,sm,offset,pin,max_step_rate);
+    quadrature_encoder_program_init(pio,sm,*offset,pin,max_step_rate);
 }
 
 void PioEncoder::reset(){

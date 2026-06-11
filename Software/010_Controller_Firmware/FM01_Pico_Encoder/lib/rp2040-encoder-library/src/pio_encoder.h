@@ -34,6 +34,10 @@ class PioEncoder{
         static bool not_first_instance_pio0;
         static uint offset_pio1;
         static bool not_first_instance_pio1;
+#if NUM_PIOS > 2
+        static uint offset_pio2;
+        static bool not_first_instance_pio2;
+#endif
         
         PioEncoder(uint8_t _pin, PIO _pio = pio0, uint _sm = -1, int _max_step_rate = 0, bool wflip=false);
         void begin();

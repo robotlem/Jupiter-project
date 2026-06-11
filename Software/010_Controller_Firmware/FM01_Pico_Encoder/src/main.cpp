@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include "config.h"
 #include <pio_encoder.h>
-#include <RotaryEncoder.h>
 extern "C"{
     #include "can2040.h"
 }
@@ -9,52 +8,29 @@ extern "C"{
 static const uint32_t SYSTEM_CLOCK_HZ = clock_get_hz(clk_sys);
 
 
-PioEncoder pio_encoders[] ={        // 7 encoders
+PioEncoder pio_encoders[] = {
     PioEncoder(PIN_ENC0, pio1),
     PioEncoder(PIN_ENC1, pio1),
     PioEncoder(PIN_ENC2, pio1),
-    PioEncoder(PIN_ENC3, pio1)
+    PioEncoder(PIN_ENC3, pio1),
+    PioEncoder(PIN_ENC4, pio2),
 };
 
-RotaryEncoder rotary_encoders[] ={
-    RotaryEncoder(PIN_ENC4, PIN_ENC4+1, RotaryEncoder::LatchMode::TWO03),
-    RotaryEncoder(PIN_ENC5, PIN_ENC5+1, RotaryEncoder::LatchMode::TWO03),
-    RotaryEncoder(PIN_ENC6, PIN_ENC6+1, RotaryEncoder::LatchMode::TWO03),
-    RotaryEncoder(PIN_ENC7, PIN_ENC7+1, RotaryEncoder::LatchMode::TWO03),
-    RotaryEncoder(PIN_ENC8, PIN_ENC8+1, RotaryEncoder::LatchMode::TWO03),
-    RotaryEncoder(PIN_ENC9, PIN_ENC9+1, RotaryEncoder::LatchMode::TWO03)
-};
+constexpr size_t ENCODER_COUNT = sizeof(pio_encoders) / sizeof(pio_encoders[0]);
 
-int lastPositions[]    = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-int currentPositions[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+int lastPositions[ENCODER_COUNT] = {};
+int currentPositions[ENCODER_COUNT] = {};
 
-void ISR_rotEnc4() {rotary_encoders[0].tick();}
-void ISR_rotEnc5() {rotary_encoders[1].tick();}
-void ISR_rotEnc6() {rotary_encoders[2].tick();}
-void ISR_rotEnc7() {rotary_encoders[3].tick();}
-void ISR_rotEnc8() {rotary_encoders[4].tick();}
-void ISR_rotEnc9() {rotary_encoders[5].tick();}
-
-uint16_t updatePositions() {
+uint16_t updatePositions() {        // Updates encoder Positions; returns changed Encoder (Bit Shifted)
     uint16_t changed = 0;
-    for (int i = 0; i < 4; i ++) {
+    for (size_t i = 0; i < ENCODER_COUNT; i++) {
         lastPositions[i] = currentPositions[i];
         currentPositions[i] = pio_encoders[i].getCount();
         if (currentPositions[i] != lastPositions[i]) {
-            changed |= 0b00000001 << i;
+            changed |= 1u << i;
         }
     }
-
-    for (int i = 4; i < 10; i ++) {
-        lastPositions[i] = currentPositions[i];
-        currentPositions[i] = rotary_encoders[i-4].getPosition();
-        if (currentPositions[i] != lastPositions[i]) {
-            changed |= 1 << i;
-        }
-    }
-
     return changed;
-
 }
 
 // --- Globaler Empfangspuffer (ISR-safe) ---
@@ -106,36 +82,10 @@ void setup() {
     // Init encoders
 
     /* PIO Encoders */
-    for (int i = 0; i < 4; i++) {
+    for (size_t i = 0; i < ENCODER_COUNT; i++) {
         pio_encoders[i].begin();
         //pio_encoders[i].flip();
     }
-    /* SW Encoders */
-    pinMode(PIN_ENC4, INPUT_PULLUP);
-    pinMode(PIN_ENC4+1, INPUT_PULLUP);
-    pinMode(PIN_ENC5, INPUT_PULLUP);
-    pinMode(PIN_ENC5+1, INPUT_PULLUP);
-    pinMode(PIN_ENC6, INPUT_PULLUP);
-    pinMode(PIN_ENC6+1, INPUT_PULLUP);
-    pinMode(PIN_ENC7, INPUT_PULLUP);
-    pinMode(PIN_ENC7+1, INPUT_PULLUP);
-    pinMode(PIN_ENC8, INPUT_PULLUP);
-    pinMode(PIN_ENC8+1, INPUT_PULLUP);
-    pinMode(PIN_ENC9, INPUT_PULLUP);
-    pinMode(PIN_ENC9+1, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(PIN_ENC4),   ISR_rotEnc4, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(PIN_ENC4+1), ISR_rotEnc4, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(PIN_ENC5),   ISR_rotEnc5, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(PIN_ENC5+1), ISR_rotEnc5, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(PIN_ENC6),   ISR_rotEnc6, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(PIN_ENC6+1), ISR_rotEnc6, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(PIN_ENC7),   ISR_rotEnc7, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(PIN_ENC7+1), ISR_rotEnc7, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(PIN_ENC8),   ISR_rotEnc8, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(PIN_ENC8+1), ISR_rotEnc8, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(PIN_ENC9),   ISR_rotEnc9, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(PIN_ENC9+1), ISR_rotEnc9, CHANGE);
-
 
     // CAN Setup
     canbus_setup();
@@ -148,7 +98,7 @@ void loop() {
 
     if (updatePositions() != 0) {
         Serial.print("Positions: ");
-        for (int i = 0; i < 10; i++) {
+        for (size_t i = 0; i < ENCODER_COUNT; i++) {
             Serial.print(currentPositions[i]);
             Serial.print(", ");
         }

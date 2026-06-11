@@ -7,23 +7,28 @@
 
 #include "Arduino.h"
 
-// --- CAN CONFIGURATION ---
+// --- CAN CONFIGURATION ---    // CAN Läuft auf PIO 0
 const uint32_t CAN_BITRATE = 125000; // 125 kbit/s (anpassen falls nötig)
 const int CAN_TX_PIN = 16;           // Beliebige freie GPIOs wählbar
 const int CAN_RX_PIN = 17;
 
-// --- Encoder Configuration
-const uint8_t PIN_ENC0 = 9;     // PIO 1
+// --- Encoder Configuration ---
+const uint8_t PIN_ENC0 = 6;     // PIO 1
 const uint8_t PIN_ENC1 = 8;     // PIO 1
 const uint8_t PIN_ENC2 = 10;    // PIO 1
 const uint8_t PIN_ENC3 = 12;    // PIO 1
 
-const uint8_t PIN_ENC4 = 4;     // SW
-const uint8_t PIN_ENC5 = 2;     // SW
-const uint8_t PIN_ENC6 = 0;     // SW
-const uint8_t PIN_ENC7 = 14;    // SW
-const uint8_t PIN_ENC8 = 18;    // SW
-const uint8_t PIN_ENC9 = 20;    // SW
+const uint8_t PIN_ENC4 = 14;    // PIO 2
+
+// --- SPI Configuration ---
+const uint8_t PIN_SPI_SCK  = 18;
+const uint8_t PIN_SPI_MOSI = 19;
+const uint8_t PIN_SPI_MISO = 20;
+const uint8_t PIN_SPI_CS   = 21;
+
+// --- MCP23S17 Configuration ---
+const uint8_t PIN_MCP0_INT = 5;
+const uint8_t PIN_MCP1_INT = 4;
 
 
 #endif //ZA_TEST_ENCODER_RPI_CONFIG_H
