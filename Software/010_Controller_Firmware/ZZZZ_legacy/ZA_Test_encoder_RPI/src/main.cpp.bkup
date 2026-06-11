@@ -1,0 +1,216 @@
+#include <Arduino.h>
+#include <pio_encoder.h>
+#include <RotaryEncoder.h>
+#include <ACAN2040.h>
+
+// --- CAN CONFIGURATION ---
+const uint32_t CAN_BITRATE = 125000; // 125 kbit/s (anpassen falls nötig)
+const int CAN_TX_PIN = 16;           // Beliebige freie GPIOs wählbar
+const int CAN_RX_PIN = 17;
+
+
+
+// --- Encoder Configuration
+const uint8_t PIN_ENC0 = 6;     // PIO
+const uint8_t PIN_ENC1 = 8;     // PIO
+const uint8_t PIN_ENC2 = 10;    // PIO
+const uint8_t PIN_ENC3 = 12;    // PIO
+
+const uint8_t PIN_ENC4 = 4;     // PIO
+const uint8_t PIN_ENC5 = 2;     // PIO
+const uint8_t PIN_ENC6 = 0;     // PIO
+const uint8_t PIN_ENC7 = 14;    // SW
+
+const uint8_t PIN_ENC8 = 18;    // SW
+const uint8_t PIN_ENC9 = 20;    // SW
+
+
+PioEncoder pio_encoders[] ={        // 7 encoders
+    PioEncoder(PIN_ENC0),
+    PioEncoder(PIN_ENC1),
+    PioEncoder(PIN_ENC2),
+    PioEncoder(PIN_ENC3),
+    PioEncoder(PIN_ENC4),
+    PioEncoder(PIN_ENC5),
+    PioEncoder(PIN_ENC6)
+};
+
+RotaryEncoder rotary_encoders[] ={
+    RotaryEncoder(PIN_ENC7, PIN_ENC7+1, RotaryEncoder::LatchMode::FOUR3),
+    RotaryEncoder(PIN_ENC8, PIN_ENC8+1, RotaryEncoder::LatchMode::FOUR3),
+    RotaryEncoder(PIN_ENC9, PIN_ENC9+1, RotaryEncoder::LatchMode::FOUR3)
+};
+
+int lastPositions[10];
+
+void ISR_rotEnc7() {rotary_encoders[0].tick();}
+void ISR_rotEnc8() {rotary_encoders[1].tick();}
+void ISR_rotEnc9() {rotary_encoders[2].tick();}
+
+
+// --- CAN CALLBACK (Wird bei Empfang aufgerufen) ---
+void canReceiverCallback(struct can2040 *cd, uint32_t notify, struct can2040_msg *msg);
+char *msg_to_str(struct can2040_msg * msg);
+
+ACAN2040 can(1, CAN_TX_PIN, CAN_RX_PIN, CAN_BITRATE, F_CPU, canReceiverCallback);
+bool got_msg = false;
+struct can2040_msg tx_msg, rx_msg;
+struct can2040_stats can_stats;
+
+void setup() {
+    for (int i = 0; i < 30 && !Serial; i++) {
+        delay(100);
+    }
+    Serial.begin(115200);
+    Serial.println("Hello World");
+
+    // Init encoders
+
+    /* PIO Encoders */
+    for (auto pe: pio_encoders) {
+        pe.begin();
+        pe.flip();
+    }
+    /* SW Encoders */
+    attachInterrupt(digitalPinToInterrupt(PIN_ENC7),   ISR_rotEnc7, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_ENC7+1), ISR_rotEnc7, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_ENC8),   ISR_rotEnc8, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_ENC8+1), ISR_rotEnc8, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_ENC9),   ISR_rotEnc9, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_ENC9+1), ISR_rotEnc9, CHANGE);
+
+    // Init CAN
+    Serial.printf("\n\nACAN2040 test, bitrate = %lu kbps, syscl = %lu mhz\n", CAN_BITRATE, F_CPU);
+
+    // create a test CAN message
+    tx_msg.id = 12345;
+    tx_msg.dlc = 8;
+    for (uint8_t i = 0; i < 8; i++) {
+        tx_msg.data[i] = i + 90;
+    }
+
+    // start CAN
+    Serial.printf("starting CAN bus\n");
+    can.begin();
+
+    Serial.printf("setup complete, free memory = %u bytes\n\n", rp2040.getFreeHeap());
+    Serial.printf("type 's' to send a test message\n");
+    Serial.printf("type 't' to stop CAN\n");
+    Serial.printf("type 'b' to restart CAN\n");
+    Serial.printf("type 't' for CAN statistics\n\n");
+
+
+
+
+}
+
+int currentPosition[4];
+void loop() {
+    static int lastPosition[4] = {0,0,0,0};
+    currentPosition[0] = pio_encoders[0].getCount();
+    currentPosition[1] = pio_encoders[1].getCount();
+    currentPosition[2] = pio_encoders[2].getCount();
+    currentPosition[3] = pio_encoders[3].getCount();
+
+    if (currentPosition[0] != lastPosition[0] || currentPosition[1] != lastPosition[1] || currentPosition[2] != lastPosition[2] || currentPosition[3] != lastPosition[3]) {
+        Serial.print("Positions: ");
+        Serial.print(currentPosition[0]);
+        Serial.print(", ");
+        Serial.print(currentPosition[1]);
+        Serial.print(", ");
+        Serial.print(currentPosition[2]);
+        Serial.print(", ");
+        Serial.print(currentPosition[3]);
+        lastPosition[0] = currentPosition[0];
+        lastPosition[1] = currentPosition[1];
+        lastPosition[2] = currentPosition[2];
+        lastPosition[3] = currentPosition[3];
+        Serial.println("");
+    }
+
+
+    // CAN Example
+
+    // print received message
+    if (got_msg) {
+        got_msg = false;
+        Serial.printf("received msg: %s\n", msg_to_str(&rx_msg));
+    }
+
+    // send a test message
+    if (Serial.available()) {
+        char c = Serial.read();
+
+        switch (c) {
+            case 's':
+                Serial.printf("sending message: %s ... ", msg_to_str(&tx_msg));
+
+                if (can.ok_to_send()) {
+                    if (can.send_message(&tx_msg)) {
+                        Serial.printf("ok\n");
+                    } else {
+                        Serial.printf("** error sending message\n");
+                    }
+                } else {
+                    Serial.printf("** no space available to send\n");
+                }
+
+                break;
+
+            case 't':
+                can.get_statistics(&can_stats);
+                Serial.printf("rx_total = %lu, tx_total = %lu, tx_attempt = %lu, parse_error = %lu\n",
+                              can_stats.rx_total, can_stats.tx_total, can_stats.tx_attempt, can_stats.parse_error);
+                break;
+
+            case 'p':
+                Serial.printf("stopping CAN\n");
+                can.stop();
+                break;
+
+            case 'b':
+                Serial.printf("restarting CAN\n");
+                can.begin();
+                break;
+        }
+    }
+}
+
+void canReceiverCallback(struct can2040 *cd, uint32_t notify, struct can2040_msg *msg) {
+    (void)(cd);
+
+    switch (notify) {
+        case CAN2040_NOTIFY_RX:
+            rx_msg = *msg;
+            got_msg = true;
+            break;
+        case CAN2040_NOTIFY_TX:
+            break;
+        case CAN2040_NOTIFY_ERROR:
+            break;
+        default:
+            break;
+    }
+}
+
+char *msg_to_str(struct can2040_msg * msg) {
+
+    static char buf[64], buf2[8];
+
+    sprintf(buf, "[ %lu ] [ %lu ] [ ", msg->id, msg->dlc);
+    for (uint32_t i = 0; i < msg->dlc && i < 8; i++) {
+        sprintf(buf2, "%u ", msg->data[i]);
+        strcat(buf, buf2);
+    }
+    strcat(buf, " ] ");
+
+    if (msg->id & CAN2040_ID_RTR) {
+        strcat(buf, "R");
+    }
+
+    if (msg->id & CAN2040_ID_EFF) {
+        strcat(buf, "X");
+    }
+
+    return buf;
+}

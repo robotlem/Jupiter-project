@@ -1,0 +1,15 @@
+{
+  "name": "can2040",
+  "version": "1.0.0",
+  "description": "CAN2040 Library",
+  "authors": [
+    {
+      "name": "Kevin O'Connor"
+    }
+  ],
+  "frameworks": "arduino",
+  "platforms": "*",
+  "build": {
+    "srcDir": "src"
+  }
+}

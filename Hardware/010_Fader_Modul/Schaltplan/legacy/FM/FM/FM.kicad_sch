@@ -1,0 +1,62 @@
+(kicad_sch
+	(version 20250114)
+	(generator "eeschema")
+	(generator_version "9.0")
+	(uuid "94823886-7859-4e21-953c-6ee1e4ad771c")
+	(paper "A4")
+	(title_block
+		(title "Fader Modul")
+		(date "2026-04-06")
+		(rev "1.0")
+		(company "SP")
+	)
+	(lib_symbols)
+	(sheet
+		(at 55.88 143.51)
+		(size 33.02 13.97)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "605c3b10-8b3d-45b5-8a9a-96cc76cdede0")
+		(property "Sheetname" "Fader_buttons"
+			(at 55.88 142.7984 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "untitled.kicad_sch"
+			(at 55.88 158.0646 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "FM"
+				(path "/94823886-7859-4e21-953c-6ee1e4ad771c"
+					(page "2")
+				)
+			)
+		)
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)

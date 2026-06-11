@@ -1,0 +1,8 @@
+# Nextcloud Sync-Datenbanken und Metadaten
+.sync_*.db*
+.sync_*.db-wal
+.sync_*.db-shm
+.sync-exclude.lst
+
+# Apple daten entfernen:
+**/.DS_Store

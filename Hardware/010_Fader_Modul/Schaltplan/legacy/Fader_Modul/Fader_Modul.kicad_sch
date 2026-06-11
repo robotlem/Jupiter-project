@@ -1,0 +1,56 @@
+(kicad_sch
+	(version 20250114)
+	(generator "eeschema")
+	(generator_version "9.0")
+	(uuid "09cbfa29-aa37-406a-b9b9-8fe2bef45ade")
+	(paper "A4")
+	(lib_symbols)
+	(sheet
+		(at 205.74 69.85)
+		(size 40.64 19.05)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "99390c2f-9a24-43e2-969e-668bdd61ddc3")
+		(property "Sheetname" "Fadertasten_Unten_1"
+			(at 205.74 69.1384 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "Fadertasten_Unten_1.kicad_sch"
+			(at 205.74 89.4846 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "Fader_Modul"
+				(path "/09cbfa29-aa37-406a-b9b9-8fe2bef45ade"
+					(page "2")
+				)
+			)
+		)
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)

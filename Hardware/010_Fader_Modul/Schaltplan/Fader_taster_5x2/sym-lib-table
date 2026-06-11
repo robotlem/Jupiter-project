@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "own_stuff")(type "KiCad")(uri "/home/robo/Dokumente/0040_THAB/3000_Projekte/0010_VDI_Student_challenge/Jupiter-project/Hardware/900_KiCad/own_stuff.kicad_sym")(options "")(descr ""))
+)
