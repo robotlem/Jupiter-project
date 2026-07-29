@@ -8,9 +8,9 @@
 #include "Arduino.h"
 
 // --- CAN CONFIGURATION ---    // CAN Läuft auf PIO 0
-const uint32_t CAN_BITRATE = 125000; // 125 kbit/s (anpassen falls nötig)
 const int CAN_TX_PIN = 16;           // Beliebige freie GPIOs wählbar
 const int CAN_RX_PIN = 17;
+const uint32_t CAN_BUS_BITRATE = 125000;
 
 // --- Encoder Configuration ---
 const uint8_t PIN_ENC0 = 6;     // PIO 1
@@ -30,5 +30,32 @@ const uint8_t PIN_SPI_CS   = 21;
 const uint8_t PIN_MCP0_INT = 5;
 const uint8_t PIN_MCP1_INT = 4;
 
+// --- SK6812 Mini-E Configuration ---
+const uint8_t LED_PIN = 2;
+
+// How to get the Index of the local LED Array from LED_ID?
+// 1. Check for range: if (LED_ID-LED_OFFSET > LED_MAX_ID || LED_ID-LED_OFFSET < 0) return;
+// 2. Get local Array Index: LED_MAPPING(LED_ID - LED_OFFSET)
+// Check Result: 255 = invalid
+
+#ifdef SECOND_ENCODER
+const uint8_t NUM_LEDS = 32;
+const uint8_t LED_OFFSET = 0;
+const uint8_t LED_MAX_ID = 52;
+const uint8_t LED_MAPPING[30] = {
+    0,   1,   2,   3,   4,     5, 255, 255, 255, 255, //  0 -   9
+  255, 255,   6,   7,   8,     9,  10,  11,  12,  13, // 10 -  19
+   14,  15,  16,  17,  18,    19,  20, 255, 255, 255  // 20 -  29
+};
+#else
+const uint8_t NUM_LEDS = 27;
+const uint8_t LED_OFFSET = 0;
+const uint8_t LED_MAX_ID = 26;
+const uint8_t LED_MAPPING[30] = {
+      0,   1,   2,   3,   4,     5, 255, 255, 255, 255, //  0 -   9
+    255, 255,   6,   7,   8,     9,  10,  11,  12,  13, // 10 -  19
+     14,  15,  16,  17,  18,    19,  20, 255, 255, 255  // 20 -  29
+};
+#endif
 
 #endif //ZA_TEST_ENCODER_RPI_CONFIG_H
