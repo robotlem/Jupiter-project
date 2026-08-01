@@ -1,12 +1,15 @@
 #include <Arduino.h>
-#include "config.h"
+#include <CAN_IDs.h>
+#include <FastLED.h>
 #include <pio_encoder.h>
-extern "C"{
-    #include "can2040.h"
-}
 
-static const uint32_t SYSTEM_CLOCK_HZ = clock_get_hz(clk_sys);
+#include "can_bus.h"
+#include "config.h"
+#include "encoder.h"
+#include "led_controller.h"
+#include "MCP23S17.h"
 
+CRGB leds[NUM_LEDS];
 
 PioEncoder pio_encoders[] = {
     PioEncoder(PIN_ENC0, pio1),
@@ -16,134 +19,80 @@ PioEncoder pio_encoders[] = {
     PioEncoder(PIN_ENC4, pio2),
 };
 
+MCP23S17 mcp23s17[2];
+
 constexpr size_t ENCODER_COUNT = sizeof(pio_encoders) / sizeof(pio_encoders[0]);
+EncoderManager encoderManager(pio_encoders, ENCODER_COUNT, CID_ENCODER_EVENT);
+LedController ledController(leds, NUM_LEDS);
 
-int lastPositions[ENCODER_COUNT] = {};
-int currentPositions[ENCODER_COUNT] = {};
+void setupLeds() {
+    ledController.begin();
+}
 
-uint16_t updatePositions() {        // Updates encoder Positions; returns changed Encoder (Bit Shifted)
-    uint16_t changed = 0;
-    for (size_t i = 0; i < ENCODER_COUNT; i++) {
-        lastPositions[i] = currentPositions[i];
-        currentPositions[i] = pio_encoders[i].getCount();
-        if (currentPositions[i] != lastPositions[i]) {
-            changed |= 1u << i;
+void setupMCP23S17() {
+    uint8_t ids[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+    mcp23s17[0].setButtonIds(ids);
+    mcp23s17[0].init(PIN_MCP0_INT, 0x00, CID_BUTTON_EVENT);
+
+    uint8_t ids2[] = {16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31};
+    mcp23s17[1].setButtonIds(ids2);
+    mcp23s17[1].init(PIN_MCP1_INT, 0x01, CID_BUTTON_EVENT);
+}
+
+void printCanMessage(const CanBusMessage &message) {
+    Serial.print("CAN RX  ID: 0x");
+    Serial.print(message.id, HEX);
+    Serial.print("  DLC: ");
+    Serial.print(message.length);
+    Serial.print("  Data: ");
+
+    for (uint8_t i = 0; i < message.length; i++) {
+        if (message.data[i] < 0x10) {
+            Serial.print('0');
         }
+        Serial.print(message.data[i], HEX);
+        Serial.print(' ');
     }
-    return changed;
-}
-
-// --- Globaler Empfangspuffer (ISR-safe) ---
-volatile bool     msg_received = false;
-volatile uint32_t rx_id;
-volatile uint8_t  rx_len;
-volatile uint8_t  rx_data[8];
-
-static struct can2040 cbus;
-
-static void can2040_cb(struct can2040 *cd, uint32_t notify, struct can2040_msg *msg)
-{
-    if (notify == CAN2040_NOTIFY_RX) {
-        rx_id  = msg->id;
-        rx_len = msg->dlc;
-        memcpy((void*)rx_data, msg->data, msg->dlc);
-        msg_received = true;
-    }
-}
-
-static void PIOx_IRQHandler(void)
-{
-    can2040_pio_irq_handler(&cbus);
-}
-
-void canbus_setup(void)
-{
-    uint32_t pio_num = 0;
-    uint32_t sys_clock = SYSTEM_CLOCK_HZ, bitrate = CAN_BITRATE;
-    uint32_t gpio_rx = CAN_RX_PIN, gpio_tx = CAN_TX_PIN;
-
-    // Setup canbus
-    can2040_setup(&cbus, pio_num);
-    can2040_callback_config(&cbus, can2040_cb);
-
-    // Enable irqs
-    irq_set_exclusive_handler(PIO0_IRQ_0, PIOx_IRQHandler);
-    irq_set_priority(PIO0_IRQ_0, 1);
-    irq_set_enabled(PIO0_IRQ_0, 1);
-
-    // Start canbus
-    can2040_start(&cbus, sys_clock, bitrate, gpio_rx, gpio_tx);
+    Serial.println();
 }
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("Hello World");
+    delay(1000);
+    Serial.println("FM01 Pico Encoder");
 
-    // Init encoders
+    encoderManager.begin();
+    Serial.println("Encoder initialisiert");
 
-    /* PIO Encoders */
-    for (size_t i = 0; i < ENCODER_COUNT; i++) {
-        pio_encoders[i].begin();
-        //pio_encoders[i].flip();
-    }
+    canBusBegin();
+    Serial.println("CAN initialisiert");
 
-    // CAN Setup
-    canbus_setup();
-    Serial.println("Canbus_setup finished");
+    setupLeds();
+    Serial.println("LEDs initialisiert");
 
+    setupMCP23S17();
+    Serial.println("MCP23S17 initialisiert");
+
+    Serial.println("Setup abgeschlossen");
 }
 
 void loop() {
-    static unsigned long lastHeartbeat = 0;
+    canBusUpdate();
+    sendHeartbeat();
 
-    if (updatePositions() != 0) {
-        Serial.print("Positions: ");
-        for (size_t i = 0; i < ENCODER_COUNT; i++) {
-            Serial.print(currentPositions[i]);
-            Serial.print(", ");
+    encoderManager.update();
+    ledController.update();
+
+    CanBusMessage receivedMessage = {};
+    while (canBusReceive(receivedMessage)) {
+        if (!ledController.handleCanMessage(receivedMessage)) {
+            printCanMessage(receivedMessage);
         }
-        Serial.println("");
     }
 
-    if (lastHeartbeat + 2000 < millis() ) {
-        Serial.println("Heartbeat");
-        //lastHeartbeat = millis();
+    for (int j = 0; j < 2; j++) {           // Button update
+        mcp23s17[j].update();
     }
-
-
-    // --- Empfangene CAN-Nachrichten ausgeben ---
-    if (msg_received) {
-        msg_received = false;
-        Serial.print("CAN RX  ID: 0x");
-        Serial.print(rx_id, HEX);
-        Serial.print("  DLC: ");
-        Serial.print(rx_len);
-        Serial.print("  Data: ");
-        for (int i = 0; i < rx_len; i++) {
-            if (rx_data[i] < 0x10) Serial.print("0");
-            Serial.print(rx_data[i], HEX);
-            Serial.print(" ");
-        }
-        Serial.println();
-    }
-
-    // --- Heartbeat senden alle 2s ---
-    if (millis() - lastHeartbeat >= 2000) {
-        lastHeartbeat = millis();
-
-        struct can2040_msg tx_msg = {};
-        tx_msg.id  = 0x123;
-        tx_msg.dlc = 4;
-        tx_msg.data[0] = 0xDE;
-        tx_msg.data[1] = 0xAD;
-        tx_msg.data[2] = 0xBE;
-        tx_msg.data[3] = 0xEF;
-
-        int ret = can2040_transmit(&cbus, &tx_msg);
-        Serial.print("CAN TX: ");
-        Serial.println(ret == 0 ? "OK" : "FEHLER");
-    }
-
 
 
 

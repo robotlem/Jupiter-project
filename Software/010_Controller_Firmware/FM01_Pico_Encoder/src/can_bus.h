@@ -10,6 +10,7 @@ struct CanBusMessage {
 };
 
 void canBusBegin();
+void canBusUpdate();
 bool canBusReceive(CanBusMessage &message);
 bool canBusTransmit(const CanBusMessage &message);
 void sendHeartbeat();

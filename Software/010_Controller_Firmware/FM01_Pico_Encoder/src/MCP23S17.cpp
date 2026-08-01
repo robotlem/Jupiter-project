@@ -6,6 +6,7 @@
 
 #include <SPI.h>
 
+#include "can_bus.h"
 #include "config.h"
 
 namespace {
@@ -88,7 +89,9 @@ void MCP23S17::init(uint8_t intPin, uint8_t address, uint16_t opcEvent) {
     writeConfiguration();
 
     initialized = true;
-    update();
+    if (digitalRead(intPin) != LOW) {
+        readPinState();
+    }
 }
 
 void MCP23S17::setButtonIds(const uint8_t ids[]) {
@@ -98,20 +101,16 @@ void MCP23S17::setButtonIds(const uint8_t ids[]) {
 }
 
 bool MCP23S17::update() {
-    if (!initialized || digitalRead(intPin) == LOW) {
+    if (!initialized) {
         return false;
     }
 
-    SPI.beginTransaction(MCP_SPI_SETTINGS);
-    selectChip();
-    SPI.transfer(readOpcode());
-    SPI.transfer(REGISTER_GPIOA);
-    pinState.byte[0] = SPI.transfer(0x00);
-    pinState.byte[1] = SPI.transfer(0x00);
-    deselectChip();
-    SPI.endTransaction();
+    const bool pinsUpdated = digitalRead(intPin) != LOW;
+    if (pinsUpdated) {
+        readPinState();
+    }
 
-    return true;
+    return sendButtonEvents() || pinsUpdated;
 }
 
 uint8_t MCP23S17::writeOpcode() const {
@@ -120,6 +119,17 @@ uint8_t MCP23S17::writeOpcode() const {
 
 uint8_t MCP23S17::readOpcode() const {
     return writeOpcode() | 0x01;
+}
+
+void MCP23S17::readPinState() {
+    SPI.beginTransaction(MCP_SPI_SETTINGS);
+    selectChip();
+    SPI.transfer(readOpcode());
+    SPI.transfer(REGISTER_GPIOA);
+    pinState.byte[0] = SPI.transfer(0x00);
+    pinState.byte[1] = SPI.transfer(0x00);
+    deselectChip();
+    SPI.endTransaction();
 }
 
 void MCP23S17::writeConfiguration() {
@@ -142,4 +152,33 @@ void MCP23S17::writeConfiguration() {
     }
     deselectChip();
     SPI.endTransaction();
+}
+
+bool MCP23S17::sendButtonEvents() {
+    bool eventAccepted = false;
+
+    for (uint8_t i = 0; i < 16; i++) {
+        const uint16_t bitMask = 1u << i;
+        if ((pinState.word & bitMask) == (lastPinState & bitMask)) {
+            continue;
+        }
+
+        CanBusMessage canMessage = {};
+        canMessage.id = opcEvent;
+        canMessage.length = 1;
+        if ((pinState.word & bitMask) != 0) {
+            canMessage.data[0] = ids[i];
+        } else {
+            canMessage.data[0] = ids[i] | 0x80;
+        }
+
+        if (!canBusTransmit(canMessage)) {
+            break;
+        }
+
+        lastPinState = (lastPinState & ~bitMask) | (pinState.word & bitMask);
+        eventAccepted = true;
+    }
+
+    return eventAccepted;
 }

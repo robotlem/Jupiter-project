@@ -6,11 +6,21 @@
 #define ZA_TEST_ENCODER_RPI_CONFIG_H
 
 #include "Arduino.h"
+#include <CAN_IDs.h>
 
 // --- CAN CONFIGURATION ---    // CAN Läuft auf PIO 0
 const int CAN_TX_PIN = 16;           // Beliebige freie GPIOs wählbar
 const int CAN_RX_PIN = 17;
-const uint32_t CAN_BUS_BITRATE = 125000;
+
+#ifdef SECOND_ENCODER
+const uint16_t  CID_ENCODER_EVENT   = CID_ENCODER_EVENT_GRP1;
+const uint16_t  CID_BUTTON_EVENT    = CID_BUTTON_EVENT_GRP1;
+const uint16_t  CID_HEARTBEAT       = CID_HEARTBEAT_RPI_ENCODER_1;
+#else
+const uint16_t  CID_ENCODER_EVENT   = CID_ENCODER_EVENT_GRP0;
+const uint16_t  CID_BUTTON_EVENT    = CID_BUTTON_EVENT_GRP0;
+const uint16_t  CID_HEARTBEAT       = CID_HEARTBEAT_RPI_ENCODER_0;
+#endif
 
 // --- Encoder Configuration ---
 const uint8_t PIN_ENC0 = 6;     // PIO 1
@@ -19,6 +29,7 @@ const uint8_t PIN_ENC2 = 10;    // PIO 1
 const uint8_t PIN_ENC3 = 12;    // PIO 1
 
 const uint8_t PIN_ENC4 = 14;    // PIO 2
+//Encoder Update Intervall in encoder.h
 
 // --- SPI Configuration ---
 const uint8_t PIN_SPI_SCK  = 18;

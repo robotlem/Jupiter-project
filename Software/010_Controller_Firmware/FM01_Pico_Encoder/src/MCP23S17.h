@@ -14,6 +14,7 @@ public:
         uint16_t word;
     } pinState;
 
+    uint8_t ids[16] = {};
     MCP23S17();
     void init(uint8_t intPin, uint8_t address, uint16_t opcEvent);
     void setButtonIds(const uint8_t ids[]);
@@ -22,13 +23,15 @@ public:
 private:
     uint8_t intPin = 5;
     uint8_t address = 0;
-    uint8_t ids[16] = {};
     uint16_t opcEvent = 0;
+    uint16_t lastPinState = 0xFFFF;
     bool initialized = false;
 
     uint8_t writeOpcode() const;
     uint8_t readOpcode() const;
+    void readPinState();
     void writeConfiguration();
+    bool sendButtonEvents();
 };
 
 

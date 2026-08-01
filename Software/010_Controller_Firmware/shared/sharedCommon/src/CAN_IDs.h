@@ -71,6 +71,7 @@ const uint16_t  CID_LED_SET_INDIVIDUAL          = 0x551;    // Expected: LED_ID,
 const uint16_t  CID_LED_SET_GROUP               = 0x552;    // Expected: GROUP_ID, LED_COLOR_INTENS
 const uint16_t  CID_LED_SET_INDI_BLINKMODE      = 0x553;    // Expected: LED_ID, LED_BLINKMODE
 const uint16_t  CID_LED_SET_GROUP_BLINKMODE     = 0x554;    // Expected: GROUP_ID, LED_BLINKMODE
+const uint16_t  CID_LED_SYNC_BLINKMODE          = 0x555;    // Synchronises the timers for the blinkmodes
 
 // LED_COLOR_INTENS
 // Sends COLOR_ID (5 lower Bit -> 32 Variations) and INTENSITY_ID (3 upper Bit -> 8 Variations) in one byte
@@ -165,6 +166,15 @@ const uint8_t   LED_BLINKMODE_MID               = 0b00000010;
 const uint8_t   LED_BLINKMODE_FAST              = 0b00000011;
 const uint8_t   LED_BLINKMODE_FADE_IN           = 0b00000100;
 const uint8_t   LED_BLINKMODE_FADE_OUT          = 0b00001000;
+
+const unsigned long BLINKMODE_INTERVAL_SLOW             = 800;
+const unsigned long BLINKMODE_INTERVAL_MID              = 400;
+const unsigned long BLINKMODE_INTERVAL_FAST             = 200;
+const unsigned long BLINKMODE_INTERVAL_FADE_SLOW        = 400;
+const unsigned long BLINKMODE_INTERVAL_FADE_MID         = 200;
+const unsigned long BLINKMODE_INTERVAL_FADE_FAST        = 100;
+
+
 
 // ##################################################################
 // # Heartbeats                                (Host <> Controller) #
