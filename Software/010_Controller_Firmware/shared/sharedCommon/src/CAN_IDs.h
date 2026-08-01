@@ -68,9 +68,9 @@ const uint16_t  CID_DISPLAY_UPDATE              = 0x503;    // Expected: Display
 // ##################################################################
 const uint16_t  CID_LED_UPDATE                  = 0x550;
 const uint16_t  CID_LED_SET_INDIVIDUAL          = 0x551;    // Expected: LED_ID, LED_COLOR_INTENS
-const uint16_t  CID_LED_SET_GROUP               = 0x552;    // Expected: GROUP_ID, LED_COLOR_INTENS
+const uint16_t  CID_LED_SET_GROUP               = 0x552;    // Expected: GROUP_ID, LED_COLOR_INTENS (GROUP_ID) [, LED_COLOR_INTENS (GROUP_ID + 1), ...]
 const uint16_t  CID_LED_SET_INDI_BLINKMODE      = 0x553;    // Expected: LED_ID, LED_BLINKMODE
-const uint16_t  CID_LED_SET_GROUP_BLINKMODE     = 0x554;    // Expected: GROUP_ID, LED_BLINKMODE
+const uint16_t  CID_LED_SET_GROUP_BLINKMODE     = 0x554;    // Expected: GROUP_ID, LED_BLINKMODE (GROUP_ID) [, LED_BLINKMODE (GROUP_ID + 1), ...]
 const uint16_t  CID_LED_SYNC_BLINKMODE          = 0x555;    // Synchronises the timers for the blinkmodes
 
 // LED_COLOR_INTENS
@@ -157,6 +157,99 @@ static const RgbColor led_colors[32] = {
     {255, 180, 100}, // 30 Warmweiß
     {180, 220, 255}, // 31 Kaltweiß
 };
+
+typedef struct {
+    uint8_t groupId;
+    const uint8_t *ledIds;
+    uint8_t ledCount;
+} LedGroup;
+
+static const uint8_t LED_GROUP_LOAD_1_5[] = {
+     1,  2,  3,  4,  5
+};
+static const uint8_t LED_GROUP_LOAD_7_11[] = {
+     7,  8,  9, 10, 11
+};
+static const uint8_t LED_GROUP_FIRE_17_21[] = {
+    17, 18, 19, 20, 21
+};
+static const uint8_t LED_GROUP_FIRE_27_31[] = {
+    27, 28, 29, 30, 31
+};
+static const uint8_t LED_GROUP_FIRE_49_50[] = {
+    49, 50
+};
+static const uint8_t LED_GROUP_STOP_22_26[] = {
+    22, 23, 24, 25, 26
+};
+static const uint8_t LED_GROUP_STOP_32_36[] = {
+    32, 33, 34, 35, 36
+};
+static const uint8_t LED_GROUP_STOP_51_52[] = {
+    51, 52
+};
+static const uint8_t LED_GROUP_FADER_PAGES_12_16[] = {
+    12, 13, 14, 15, 16
+};
+static const uint8_t LED_GROUP_MAKRO_37_48[] = {
+    37, 38, 39, 40, 41, 42,
+    43, 44, 45, 46, 47, 48
+};
+static const uint8_t LED_GROUP_EOS_KEYBOARD_53_163[] = {
+     53,  54,  55,  56,  57,  58,  59,  60,
+     61,  62,  63,  64,  65,  66,  67,  68,
+     69,  70,  71,  72,  73,  74,  75,  76,
+     77,  78,  79,  80,  81,  82,  83,  84,
+     85,  86,  87,  88,  89,  90,  91,  92,
+     93,  94,  95,  96,  97,  98,  99, 100,
+    101, 102, 103, 104, 105, 106, 107, 108,
+    109, 110, 111, 112, 113, 114, 115, 116,
+    117, 118, 119, 120, 121, 122, 123, 124,
+    125, 126, 127, 128, 129, 130, 131, 132,
+    133, 134, 135, 136, 137, 138, 139, 140,
+    141, 142, 143, 144, 145, 146, 147, 148,
+    149, 150, 151, 152, 153, 154, 155, 156,
+    157, 158, 159, 160, 161, 162, 163
+};
+static const uint8_t LED_GROUP_ALL_0_163[] = {
+      0,   1,   2,   3,   4,   5,   6,   7,
+      8,   9,  10,  11,  12,  13,  14,  15,
+     16,  17,  18,  19,  20,  21,  22,  23,
+     24,  25,  26,  27,  28,  29,  30,  31,
+     32,  33,  34,  35,  36,  37,  38,  39,
+     40,  41,  42,  43,  44,  45,  46,  47,
+     48,  49,  50,  51,  52,  53,  54,  55,
+     56,  57,  58,  59,  60,  61,  62,  63,
+     64,  65,  66,  67,  68,  69,  70,  71,
+     72,  73,  74,  75,  76,  77,  78,  79,
+     80,  81,  82,  83,  84,  85,  86,  87,
+     88,  89,  90,  91,  92,  93,  94,  95,
+     96,  97,  98,  99, 100, 101, 102, 103,
+    104, 105, 106, 107, 108, 109, 110, 111,
+    112, 113, 114, 115, 116, 117, 118, 119,
+    120, 121, 122, 123, 124, 125, 126, 127,
+    128, 129, 130, 131, 132, 133, 134, 135,
+    136, 137, 138, 139, 140, 141, 142, 143,
+    144, 145, 146, 147, 148, 149, 150, 151,
+    152, 153, 154, 155, 156, 157, 158, 159,
+    160, 161, 162, 163
+};
+
+static const LedGroup LED_GROUPS[] = {
+    { 0, LED_GROUP_LOAD_1_5,             sizeof(LED_GROUP_LOAD_1_5) / sizeof(LED_GROUP_LOAD_1_5[0]) },
+    { 1, LED_GROUP_LOAD_7_11,            sizeof(LED_GROUP_LOAD_7_11) / sizeof(LED_GROUP_LOAD_7_11[0]) },
+    { 2, LED_GROUP_FIRE_17_21,           sizeof(LED_GROUP_FIRE_17_21) / sizeof(LED_GROUP_FIRE_17_21[0]) },
+    { 3, LED_GROUP_FIRE_27_31,           sizeof(LED_GROUP_FIRE_27_31) / sizeof(LED_GROUP_FIRE_27_31[0]) },
+    { 4, LED_GROUP_FIRE_49_50,           sizeof(LED_GROUP_FIRE_49_50) / sizeof(LED_GROUP_FIRE_49_50[0]) },
+    { 5, LED_GROUP_STOP_22_26,           sizeof(LED_GROUP_STOP_22_26) / sizeof(LED_GROUP_STOP_22_26[0]) },
+    { 6, LED_GROUP_STOP_32_36,           sizeof(LED_GROUP_STOP_32_36) / sizeof(LED_GROUP_STOP_32_36[0]) },
+    { 7, LED_GROUP_STOP_51_52,           sizeof(LED_GROUP_STOP_51_52) / sizeof(LED_GROUP_STOP_51_52[0]) },
+    { 8, LED_GROUP_FADER_PAGES_12_16,    sizeof(LED_GROUP_FADER_PAGES_12_16) / sizeof(LED_GROUP_FADER_PAGES_12_16[0]) },
+    { 9, LED_GROUP_MAKRO_37_48,          sizeof(LED_GROUP_MAKRO_37_48) / sizeof(LED_GROUP_MAKRO_37_48[0]) },
+    {10, LED_GROUP_EOS_KEYBOARD_53_163,  sizeof(LED_GROUP_EOS_KEYBOARD_53_163) / sizeof(LED_GROUP_EOS_KEYBOARD_53_163[0]) },
+    {11, LED_GROUP_ALL_0_163,            sizeof(LED_GROUP_ALL_0_163) / sizeof(LED_GROUP_ALL_0_163[0]) },
+};
+static const uint8_t LED_GROUP_COUNT = sizeof(LED_GROUPS) / sizeof(LED_GROUPS[0]);
 
 // LED_BLINKMODES
 // Use one of the Modes Static, Slow, Mid, Fast and enable Fade In/Out with bit setting.

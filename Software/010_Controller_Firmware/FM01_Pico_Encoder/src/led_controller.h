@@ -33,8 +33,13 @@ private:
 
     void setIndividual(const CanBusMessage &message);
     void setIndividualBlinkMode(const CanBusMessage &message);
+    void setGroup(const CanBusMessage &message);
+    void setGroupBlinkMode(const CanBusMessage &message);
     void setLed(uint16_t ledId, uint8_t colorIntens);
     void setLedBlinkMode(uint16_t ledId, uint8_t blinkMode);
+    void setGroupColor(uint16_t groupId, uint8_t colorIntens);
+    void setGroupBlinkMode(uint16_t groupId, uint8_t blinkMode);
+    static const LedGroup *findGroup(uint16_t groupId);
     void commitPendingState();
     void handleHostHeartbeat();
     void updateHostHeartbeatState(unsigned long now);

@@ -42,8 +42,14 @@ bool LedController::handleCanMessage(const CanBusMessage &message) {
         case CID_LED_SET_INDIVIDUAL:
             setIndividual(message);
             return true;
+        case CID_LED_SET_GROUP:
+            setGroup(message);
+            return true;
         case CID_LED_SET_INDI_BLINKMODE:
             setIndividualBlinkMode(message);
+            return true;
+        case CID_LED_SET_GROUP_BLINKMODE:
+            setGroupBlinkMode(message);
             return true;
         case CID_LED_SYNC_BLINKMODE:
             blinkStartMs = millis();
@@ -85,6 +91,50 @@ void LedController::setIndividualBlinkMode(const CanBusMessage &message) {
     }
 }
 
+void LedController::setGroup(const CanBusMessage &message) {
+    if (message.length < 2) {
+        return;
+    }
+
+    const uint8_t startGroupId = message.data[0];
+    for (uint8_t i = 1; i < message.length; i++) {
+        setGroupColor(static_cast<uint16_t>(startGroupId) + i - 1, message.data[i]);
+    }
+}
+
+void LedController::setGroupBlinkMode(const CanBusMessage &message) {
+    if (message.length < 2) {
+        return;
+    }
+
+    const uint8_t startGroupId = message.data[0];
+    for (uint8_t i = 1; i < message.length; i++) {
+        setGroupBlinkMode(static_cast<uint16_t>(startGroupId) + i - 1, message.data[i]);
+    }
+}
+
+void LedController::setGroupColor(uint16_t groupId, uint8_t colorIntens) {
+    const LedGroup *group = findGroup(groupId);
+    if (group == nullptr) {
+        return;
+    }
+
+    for (uint8_t i = 0; i < group->ledCount; i++) {
+        setLed(group->ledIds[i], colorIntens);
+    }
+}
+
+void LedController::setGroupBlinkMode(uint16_t groupId, uint8_t blinkMode) {
+    const LedGroup *group = findGroup(groupId);
+    if (group == nullptr) {
+        return;
+    }
+
+    for (uint8_t i = 0; i < group->ledCount; i++) {
+        setLedBlinkMode(group->ledIds[i], blinkMode);
+    }
+}
+
 void LedController::setLed(uint16_t ledId, uint8_t colorIntens) {
     uint8_t localIndex = 0;
     if (!mapLedId(ledId, localIndex) || localIndex >= ledCount) {
@@ -101,6 +151,16 @@ void LedController::setLedBlinkMode(uint16_t ledId, uint8_t blinkMode) {
     }
 
     pendingBlinkModes[localIndex] = blinkMode;
+}
+
+const LedGroup *LedController::findGroup(uint16_t groupId) {
+    for (uint8_t i = 0; i < LED_GROUP_COUNT; i++) {
+        if (LED_GROUPS[i].groupId == groupId) {
+            return &LED_GROUPS[i];
+        }
+    }
+
+    return nullptr;
 }
 
 void LedController::commitPendingState() {
