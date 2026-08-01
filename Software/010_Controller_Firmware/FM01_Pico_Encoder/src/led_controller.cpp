@@ -17,18 +17,22 @@ void LedController::begin() {
     fill_solid(renderedColors, ledCount, CRGB::Black);
     fill_solid(leds, ledCount, CRGB::Black);
     blinkStartMs = millis();
+    warningBlinkStartMs = blinkStartMs;
+    lastHostHeartbeatMs = blinkStartMs;
     nextBlinkRenderMs = blinkStartMs;
     FastLED.show();
 }
 
 void LedController::update() {
     const unsigned long now = millis();
+    updateHostHeartbeatState(now);
+
     if (static_cast<long>(now - nextBlinkRenderMs) < 0) {
         return;
     }
 
     nextBlinkRenderMs = now + BLINK_RENDER_INTERVAL_MS;
-    if (renderActiveState(now)) {
+    if (renderOutputState(now)) {
         FastLED.show();
     }
 }
@@ -44,12 +48,15 @@ bool LedController::handleCanMessage(const CanBusMessage &message) {
         case CID_LED_SYNC_BLINKMODE:
             blinkStartMs = millis();
             nextBlinkRenderMs = blinkStartMs;
-            if (renderActiveState(blinkStartMs)) {
+            if (renderOutputState(blinkStartMs)) {
                 FastLED.show();
             }
             return true;
         case CID_LED_UPDATE:
             commitPendingState();
+            return true;
+        case CID_HEARTBEAT_MAC:
+            handleHostHeartbeat();
             return true;
         default:
             return false;
@@ -106,18 +113,46 @@ void LedController::commitPendingState() {
         activeBlinkModes[i] = pendingBlinkModes[i];
     }
 
-    renderActiveState(millis());
+    renderOutputState(millis());
     FastLED.show();
 }
 
-bool LedController::renderActiveState(unsigned long now) {
+void LedController::handleHostHeartbeat() {
+    const unsigned long now = millis();
+    lastHostHeartbeatMs = now;
+
+    if (!hostOffline) {
+        return;
+    }
+
+    hostOffline = false;
+    nextBlinkRenderMs = now;
+    if (renderOutputState(now)) {
+        FastLED.show();
+    }
+}
+
+void LedController::updateHostHeartbeatState(unsigned long now) {
+    if (hostOffline || static_cast<unsigned long>(now - lastHostHeartbeatMs) <= HEARTBEAT_TIMEOUT) {
+        return;
+    }
+
+    hostOffline = true;
+    warningBlinkStartMs = now;
+    nextBlinkRenderMs = now;
+    if (renderOutputState(now)) {
+        FastLED.show();
+    }
+}
+
+bool LedController::renderOutputState(unsigned long now) {
     if (leds == nullptr) {
         return false;
     }
 
     bool changed = false;
     for (uint8_t i = 0; i < ledCount; i++) {
-        const CRGB rendered = renderLed(i, now);
+        const CRGB rendered = hostOffline ? renderWarningLed(i, now) : renderLed(i, now);
         if (rendered != renderedColors[i]) {
             renderedColors[i] = rendered;
             leds[i] = rendered;
@@ -131,6 +166,17 @@ bool LedController::renderActiveState(unsigned long now) {
 CRGB LedController::renderLed(uint8_t localIndex, unsigned long now) const {
     const uint8_t scale = blinkScale(activeBlinkModes[localIndex], now - blinkStartMs);
     return scaleColor(activeColors[localIndex], scale);
+}
+
+CRGB LedController::renderWarningLed(uint8_t localIndex, unsigned long now) const {
+    if (localIndex != 0) {
+        return CRGB::Black;
+    }
+
+    const uint8_t warningBlinkMode = LED_BLINKMODE_MID | LED_BLINKMODE_FADE_IN | LED_BLINKMODE_FADE_OUT;
+    const uint8_t scale = blinkScale(warningBlinkMode, now - warningBlinkStartMs);
+    const CRGB yellow = decodeColor(INTENS_ID_7 | COLOR_ID_YELLOW);
+    return scaleColor(yellow, scale);
 }
 
 uint8_t LedController::blinkScale(uint8_t blinkMode, unsigned long elapsedMs) {

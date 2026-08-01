@@ -26,15 +26,21 @@ private:
     uint8_t pendingBlinkModes[NUM_LEDS] = {};
     uint8_t activeBlinkModes[NUM_LEDS] = {};
     unsigned long blinkStartMs = 0;
+    unsigned long warningBlinkStartMs = 0;
     unsigned long nextBlinkRenderMs = 0;
+    unsigned long lastHostHeartbeatMs = 0;
+    bool hostOffline = false;
 
     void setIndividual(const CanBusMessage &message);
     void setIndividualBlinkMode(const CanBusMessage &message);
     void setLed(uint16_t ledId, uint8_t colorIntens);
     void setLedBlinkMode(uint16_t ledId, uint8_t blinkMode);
     void commitPendingState();
-    bool renderActiveState(unsigned long now);
+    void handleHostHeartbeat();
+    void updateHostHeartbeatState(unsigned long now);
+    bool renderOutputState(unsigned long now);
     CRGB renderLed(uint8_t localIndex, unsigned long now) const;
+    CRGB renderWarningLed(uint8_t localIndex, unsigned long now) const;
     static uint8_t blinkScale(uint8_t blinkMode, unsigned long elapsedMs);
     static unsigned long blinkInterval(uint8_t blinkMode);
     static unsigned long fadeInterval(uint8_t blinkMode);
